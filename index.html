@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1b1b22">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Narrhalla">
+  <title>Narrhalla Player</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">🎭</span> <span class="brand-name">Narrhalla Player</span>
+      <span id="kaInd" class="ka-ind" title="Bluetooth wird wach gehalten" hidden><span class="ka-dot"></span>BT wach</span></div>
+    <div class="top-actions">
+      <label class="btn" title="Audiodateien laden">
+        + Titel
+        <input id="fileInput" type="file" accept="audio/*" multiple hidden>
+      </label>
+      <button id="settingsBtn" class="btn ghost icon" title="Einstellungen, Sichern">⚙</button>
+      <button id="helpBtn" class="btn ghost icon" title="Hilfe">?</button>
+    </div>
+  </header>
+
+  <!-- Warnungen (Akku, Benachrichtigungen, Speicher, Sicherung …) -->
+  <div id="banners" class="banners"></div>
+
+  <main class="layout">
+    <!-- Player: das, was man ständig braucht -->
+    <section class="deck">
+      <div id="emptyState" class="empty-state" hidden>
+        <p>Noch keine Musik geladen.</p>
+        <label class="btn big-btn">
+          + Ersten Titel laden
+          <input id="emptyFileInput" type="file" accept="audio/*" multiple hidden>
+        </label>
+        <p class="sub">MP3, WAV, M4A … Die Dateien werden in der App gespeichert.</p>
+      </div>
+
+      <div class="now">
+        <div id="nowColor" class="now-color"></div>
+        <button id="nowTitleBtn" class="now-text" title="Anderen Titel wählen">
+          <span class="now-title"><span id="nowTitle">Kein Titel geladen</span> <span class="chev">▾</span></span>
+          <span id="nowSub" class="now-group">–</span>
+        </button>
+        <div id="countBox" class="count-box" title="Zählzeit 1–8">
+          <div id="countNum" class="count-num">–</div>
+          <div id="countEight" class="count-eight"></div>
+        </div>
+        <div class="time">
+          <div id="timeRemain" class="remain">-0:00</div>
+          <div class="elapsed"><span id="timeCur">0:00</span> / <span id="timeDur">0:00</span></div>
+        </div>
+      </div>
+
+      <!-- Die große Musik-Leiste: mit dem Finger schieben, tippen = springen -->
+      <div class="wave-wrap">
+        <canvas id="zoom" class="zoom"></canvas>
+        <div class="zoom-btns">
+          <button id="zoomOut" class="zbtn" title="Mehr Überblick">−</button>
+          <button id="zoomIn" class="zbtn" title="Näher ran">+</button>
+        </div>
+        <canvas id="wave" class="wave" title="Ganzes Stück – antippen zum Springen"></canvas>
+      </div>
+
+      <div class="transport">
+        <button id="replayBtn" class="tbtn" title="Nochmal von vorn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg><span class="cap">Von vorn</span></button>
+        <button id="backBtn" class="tbtn" title="Einen Achter zurück"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/></svg><span class="cap" id="backCap">−1 Achter</span></button>
+        <button id="playBtn" class="tbtn big" title="Abspielen / Pause"><svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button id="fwdBtn" class="tbtn" title="Einen Achter vor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg><span class="cap" id="fwdCap">+1 Achter</span></button>
+        <button id="stopBtn" class="tbtn" title="Stopp – zurück an den Anfang"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg><span class="cap">Stopp</span></button>
+      </div>
+
+      <div class="actions">
+        <button id="replayMarkerBtn" class="abtn" title="Ab dem letzten Marker vor der aktuellen Stelle nochmal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg> Ab Marker</button>
+        <button id="quickMarkerBtn" class="abtn mark" title="Marker an dieser Stelle setzen und benennen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm-4 10h-2v-2H9V9h2V7h2v2h2v2h-2v2z"/></svg> Marker setzen</button>
+        <button id="fadeBtn" class="abtn" title="Die Musik wird in 3 Sekunden leiser und stoppt dann"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg> Sanft stoppen</button>
+      </div>
+
+      <div class="count-row">
+        <span class="label">Mitzählen</span>
+        <div id="countModeSeg" class="seg">
+          <button data-v="off">Aus</button>
+          <button data-v="voice">Stimme</button>
+          <button data-v="click">Klick</button>
+        </div>
+        <label class="vol" title="Lautstärke Mitzählen">🔉 <input id="countVol" type="range" min="0" max="1.5" step="0.05"></label>
+      </div>
+
+      <div class="markers">
+        <div class="section-head">
+          <h2>Marker</h2>
+          <button id="addMarkerBtn" class="btn">+ Marker hier</button>
+        </div>
+        <ul id="markerList" class="marker-list"></ul>
+      </div>
+
+      <details id="editDetails" class="edit-details">
+        <summary>✎ Bearbeiten: Titel, Takt, Lieder, Start/Ende, Lautstärke</summary>
+
+        <div class="edit-block">
+          <button id="editTrackBtn" class="btn ghost">✎ Titel: Name, Gruppe, Farbe, Reihenfolge …</button>
+        </div>
+
+        <div class="edit-block">
+          <h3>Zählung und Tempo <b id="tempoSeg"></b></h3>
+          <p class="sub">Erst die Musik an die richtige Stelle schieben, dann drücken.</p>
+          <div class="row-inline">
+            <button id="setOneBtn" class="btn ghost" title="Ab dieser Stelle mit 1 zählen">Hier ist die 1</button>
+            <button id="nudgeBack" class="btn ghost" title="Zählung etwas früher">◀ früher</button>
+            <button id="nudgeFwd" class="btn ghost" title="Zählung etwas später">später ▶</button>
+          </div>
+          <div class="row-inline">
+            <span class="label">Tempo</span>
+            <input id="bpmInput" class="num-input" type="number" min="40" max="240" step="0.1" placeholder="BPM" title="Schläge pro Minute">
+            <button id="bpmHalf" class="btn ghost" title="Halb so schnell zählen">½</button>
+            <button id="bpmDouble" class="btn ghost" title="Doppelt so schnell zählen">×2</button>
+            <button id="tapBtn" class="btn ghost" title="Bei laufender Musik mindestens 4× im Takt tippen">Im Takt tippen</button>
+          </div>
+          <div class="row-inline">
+            <button id="detectBtn" class="btn ghost" title="Takt dieses Lieds neu erkennen">Takt neu erkennen</button>
+            <span class="label">Zahlen einrasten</span>
+            <div id="snapSeg" class="seg">
+              <button data-v="off">Aus</button>
+              <button data-v="beat">1–8</button>
+              <button data-v="eight">nur 1</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-block">
+          <div class="section-head">
+            <h3>Lieder in der Datei</h3>
+            <div class="row-inline">
+              <button id="splitBtn" class="btn ghost" title="An dieser Stelle beginnt ein neues Lied">Hier neues Lied</button>
+              <button id="detectSongsBtn" class="btn ghost" title="Lieder automatisch erkennen">Lieder neu erkennen</button>
+            </div>
+          </div>
+          <ul id="songList" class="song-list"></ul>
+        </div>
+
+        <div class="edit-block">
+          <h3>Start und Ende kürzen</h3>
+          <p class="sub">Die Datei bleibt unverändert – es wird nur später angefangen bzw. früher aufgehört.</p>
+          <div class="row-inline">
+            <button id="cueInBtn" class="btn ghost">Start hierher</button>
+            <span id="cueInVal" class="cue-val">0:00.0</span>
+            <button id="cueOutBtn" class="btn ghost">Ende hierher</button>
+            <span id="cueOutVal" class="cue-val">Ende</span>
+            <button id="cueResetBtn" class="btn ghost">Ganz abspielen</button>
+          </div>
+        </div>
+
+        <div class="edit-block">
+          <h3>Lautstärke Musik</h3>
+          <label class="vol wide">🔊 <input id="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
+          <p id="iosVolHint" class="sub" hidden>Am iPhone/iPad die Lautstärke bitte mit den Gerätetasten einstellen.</p>
+        </div>
+      </details>
+    </section>
+
+    <div id="library" class="library">
+    <div class="lib-head">
+      <h2>Titel wählen</h2>
+      <div class="row-inline">
+        <label class="btn small">+ Titel<input id="libFileInput" type="file" accept="audio/*" multiple hidden></label>
+        <button id="libClose" class="btn ghost small" title="Schließen">✕</button>
+      </div>
+    </div>
+    <!-- Gruppen -->
+    <aside class="sidebar">
+      <div class="section-head">
+        <h2>Gruppen</h2>
+        <button id="addGroupBtn" class="btn ghost small" title="Neue Gruppe anlegen">+ Gruppe</button>
+      </div>
+      <ul id="groupList" class="group-list"></ul>
+    </aside>
+
+    <!-- Titelliste -->
+    <section class="tracks">
+      <div class="tracks-head">
+        <input id="search" type="search" placeholder="Titel suchen…">
+      </div>
+      <div id="filterBar" class="filter-bar" hidden></div>
+      <ol id="trackList" class="track-list"></ol>
+      <div id="dropHint" class="drop-hint">
+        Noch keine Titel.<br>„+ Titel“ antippen oder Dateien hierher ziehen.
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <!-- Mini-Steuerung unten am Handy, wenn der Player weggescrollt ist -->
+  <div id="miniBar" class="mini-bar" hidden>
+    <button id="miniPlay" class="mini-btn play" title="Abspielen / Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+    <button id="miniStop" class="mini-btn" title="Stopp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg></button>
+    <button id="miniReplay" class="mini-btn" title="Von vorn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+    <button id="miniInfo" class="mini-info">
+      <span id="miniTitle"></span>
+      <span id="miniCount" class="mini-count"></span>
+    </button>
+  </div>
+
+  <!-- Dialoge -->
+  <dialog id="groupDlg">
+    <form method="dialog" class="dlg">
+      <h2 id="groupDlgTitle">Gruppe</h2>
+      <label class="field">Name <input id="groupDlgName" type="text" maxlength="30" required></label>
+      <div class="field">Farbe <div id="groupDlgColors" class="swatches"></div></div>
+      <div class="dlg-actions">
+        <button value="cancel" class="btn ghost" formnovalidate>Abbrechen</button>
+        <button id="groupDlgSave" value="save" class="btn">Speichern</button>
+      </div>
+      <div class="danger-zone">
+        <button id="groupDlgDelete" type="button" class="btn ghost danger">Gruppe löschen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="trackDlg">
+    <form method="dialog" class="dlg">
+      <h2>Titel bearbeiten</h2>
+      <label class="field">Titel <input id="trackDlgName" type="text" maxlength="120" required></label>
+      <label class="field">Interpret <input id="trackDlgArtist" type="text" maxlength="120"></label>
+      <div class="field">Gruppe <div id="trackDlgGroups" class="chips"></div></div>
+      <div class="field">Farbe des Titels
+        <div class="row-inline">
+          <button id="trackDlgColor" type="button" class="mcolor big" title="Farbe wählen"></button>
+          <span id="trackDlgColorName" class="sub"></span>
+          <button id="trackDlgColorReset" type="button" class="btn ghost small">Gruppenfarbe nehmen</button>
+        </div>
+      </div>
+      <div class="field">Platz in der Liste
+        <div class="row-inline">
+          <button id="trackDlgUp" type="button" class="btn ghost">▲ nach oben</button>
+          <button id="trackDlgDown" type="button" class="btn ghost">▼ nach unten</button>
+        </div>
+      </div>
+      <p id="trackDlgInfo" class="sub"></p>
+      <div class="dlg-actions">
+        <button value="cancel" class="btn ghost" formnovalidate>Abbrechen</button>
+        <button value="save" class="btn">Speichern</button>
+      </div>
+      <div class="danger-zone">
+        <label class="btn ghost small">Audiodatei ersetzen
+          <input id="trackDlgReplace" type="file" accept="audio/*" hidden></label>
+        <button id="trackDlgDelete" type="button" class="btn ghost danger small">Titel löschen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="markerDlg">
+    <form method="dialog" class="dlg">
+      <h2 id="markerDlgTitle">Marker</h2>
+      <label class="field">Beschriftung <input id="markerDlgName" type="text" maxlength="40" placeholder="z. B. Einsatz Garde, Hebefigur"></label>
+      <div class="quick-names" id="markerDlgQuick"></div>
+      <div class="field">Farbe <div id="markerDlgColors" class="swatches"></div></div>
+      <div class="field">Für das Stück
+        <div class="row-inline">
+          <button id="markerDlgIn" type="button" class="btn ghost">Hier anfangen</button>
+          <button id="markerDlgOut" type="button" class="btn ghost">Hier aufhören</button>
+        </div>
+      </div>
+      <div class="dlg-actions">
+        <button value="cancel" class="btn ghost" formnovalidate>Abbrechen</button>
+        <button value="save" class="btn">Speichern</button>
+      </div>
+      <div class="danger-zone">
+        <button id="markerDlgDelete" type="button" class="btn ghost danger small">Marker löschen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="colorDlg">
+    <form method="dialog" class="dlg">
+      <h2>Farbe wählen</h2>
+      <div id="colorDlgLabelBox" class="field">Farben mit Bezeichnung <div id="colorDlgLabels" class="chips"></div></div>
+      <div class="field">Nur Farbe <div id="colorDlgSwatches" class="swatches"></div></div>
+      <p class="sub">Eigene Bezeichnungen (z. B. „Garde tanzt“, „Alle“, „Solo“) legst du unter ⚙ an.</p>
+      <div class="dlg-actions"><button value="cancel" class="btn ghost">Abbrechen</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDlg" class="tall">
+    <form method="dialog" class="dlg">
+      <h2>Einstellungen</h2>
+
+      <div class="field box">
+        <b>Hinweise</b>
+        <ul id="setNotices" class="notice-list"></ul>
+      </div>
+
+      <div class="field box">
+        <b>Training / Bluetooth</b>
+        <label class="field row"><input id="setKeepAlive" type="checkbox"><span>Bluetooth-Verbindung wach halten
+          <small class="sub">Während der Wiedergabe und bis 30 Minuten danach läuft ein unhörbar leises Signal, damit Box und Handy nicht trennen – auch gesperrt.</small></span></label>
+        <label class="field">Stärke des Wachhalte-Signals
+          <select id="setKeepLevel" class="sel">
+            <option value="low">unhörbar (Standard)</option>
+            <option value="mid">etwas stärker – falls die Box trotzdem abschaltet</option>
+          </select></label>
+        <label class="field row"><input id="setScreenOn" type="checkbox"><span>Bildschirm nicht automatisch sperren</span></label>
+        <div id="batteryRow" class="row-inline" hidden>
+          <button id="batteryBtn" type="button" class="btn ghost small">Akku-Optimierung ausschalten</button>
+          <span id="batteryState" class="sub"></span>
+        </div>
+        <p id="iosHint" class="sub" hidden>iPhone/iPad: Musik läuft gesperrt weiter. Lautstärke über die Gerätetasten; Ausblenden und Mitzählen funktionieren nur bei entsperrtem Bildschirm.</p>
+      </div>
+
+      <div class="field box">
+        <b>Mitzählen</b>
+        <div class="field">Stimme
+          <div class="row-inline">
+            <select id="setVoice" class="sel"></select>
+            <button id="testVoiceBtn" type="button" class="btn ghost small">▶ Probe</button>
+            <button id="recordVoiceBtn" type="button" class="btn ghost small">● Eigene aufnehmen</button>
+          </div>
+        </div>
+        <label class="field">Früher/später (ms) <span id="setCountOffsetVal" class="sub"></span>
+          <input id="setCountOffset" type="range" min="-250" max="250" step="10"></label>
+        <p class="sub">Hinkt die Stimme hinter der Musik her (z. B. mit Bluetooth): Regler nach links.</p>
+      </div>
+
+      <div class="field box">
+        <b>Bedienung</b>
+        <label class="field row"><input id="setScrubAudio" type="checkbox"><span>Ton beim Schieben in der Musik</span></label>
+        <label class="field row"><input id="setMarkerPlay" type="checkbox"><span>Marker antippen startet sofort
+          <small class="sub">aus: springt nur hin und wartet auf ▶</small></span></label>
+        <label class="field row"><input id="setJumpEight" type="checkbox"><span>Vor/Zurück um einen Achter
+          <small class="sub">aus: um 5 Sekunden</small></span></label>
+        <label class="field row"><input id="setWaveLock" type="checkbox"><span>Musik-Leiste sperren (für Auftritte)
+          <small class="sub">verhindert versehentliches Springen beim Antippen</small></span></label>
+      </div>
+
+      <div class="field box">
+        <b>Farben mit Bezeichnung</b>
+        <ul id="labelList" class="label-list"></ul>
+        <button id="addLabelBtn" type="button" class="btn ghost small">+ Farbe mit Bezeichnung</button>
+      </div>
+
+      <div class="field box">
+        <b>Sichern</b>
+        <p class="sub">Sichert Setliste, Gruppen, Marker, Takt, Lieder und Farben als Datei. Die Musikdateien selbst bitte zusätzlich aufheben.</p>
+        <div class="row-inline">
+          <button id="exportBtn" type="button" class="btn">Jetzt sichern</button>
+          <label class="btn ghost">Sicherung laden
+            <input id="importInput" type="file" accept=".json,application/json,text/plain" hidden></label>
+        </div>
+        <span id="lastBackup" class="sub"></span>
+      </div>
+
+      <p class="sub">Version <span id="appVersion"></span></p>
+      <div class="dlg-actions sticky"><button class="btn">Fertig</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="recordDlg">
+    <form method="dialog" class="dlg">
+      <h2>Eigene Zählstimme aufnehmen</h2>
+      <p>Nach „Start“ deutlich und mit kurzen Pausen sprechen:<br><b>eins – zwei – drei – vier – fünf – sechs – sieben – acht</b><br>
+        <span class="sub">(oder „one … eight“, wie ihr zählt). Die Aufnahme dauert 10 Sekunden. Die Musik wird dafür angehalten.</span></p>
+      <div id="recordStatus" class="record-status">Bereit</div>
+      <div class="dlg-actions">
+        <button value="cancel" class="btn ghost">Schließen</button>
+        <button id="recordStart" type="button" class="btn">● Start</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="noticeDlg">
+    <form method="dialog" class="dlg">
+      <h2>Hinweise</h2>
+      <ul id="noticeList" class="notice-list"></ul>
+      <div class="dlg-actions"><button class="btn ghost">Schließen</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="confirmDlg">
+    <form method="dialog" class="dlg">
+      <h2 id="confirmTitle"></h2>
+      <div id="confirmText"></div>
+      <div class="dlg-actions">
+        <button value="cancel" class="btn ghost" id="confirmNo">Abbrechen</button>
+        <button value="ok" class="btn" id="confirmYes">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="helpDlg" class="tall">
+    <form method="dialog" class="dlg">
+      <h2>Kurzanleitung</h2>
+      <div class="help">
+        <p><b>Titel wählen:</b> oben auf den Titelnamen tippen – dort sind alle Titel und Gruppen. ✎ beim Titel zum Bearbeiten.</p>
+        <p><b>Abspielen:</b> Der große Knopf ist Abspielen/Pause, „Stopp“ springt an den Anfang zurück. „Sanft stoppen“ macht die Musik in 3 Sekunden leiser und hält dann an.</p>
+        <p><b>Musik-Leiste:</b> Die große Wellenform mit dem Finger nach links/rechts schieben – wie eine Platte. Antippen springt an die Stelle. Die Zahlen oben sind die Zählzeiten 1–8. Der schmale Streifen darunter zeigt das ganze Stück.</p>
+        <p><b>Nochmal:</b> „Von vorn“ oder „Ab Marker nochmal“ (ab dem letzten Marker vor der aktuellen Stelle).</p>
+        <p><b>Marker:</b> „+ Marker hier“ setzt einen Marker an der aktuellen Stelle. Den farbigen Marker antippen startet genau dort. ✎ daneben: Name, Farbe, löschen.</p>
+        <p><b>Mitzählen:</b> Stimme oder Klick zählt 1–8 mit. Stimmt die 1 nicht: „Bearbeiten“ → an die richtige Stelle schieben → „Hier ist die 1“.</p>
+        <p><b>Rückgängig:</b> Nach jeder Änderung erscheint unten kurz „Rückgängig“.</p>
+        <p><b>Training mit Bluetooth-Box:</b> ⚙ → „Bluetooth-Verbindung wach halten“ (ist an). Steht oben eine gelbe Zeile, „Beheben“ antippen.</p>
+        <p><b>Sichern:</b> ⚙ → „Jetzt sichern“. Ohne Sicherung sind Marker und Korrekturen weg, wenn das Handy kaputtgeht oder die App gelöscht wird.</p>
+      </div>
+      <div id="keyHelp" class="help-keys">
+        <h3>Tastatur (am Computer)</h3>
+        <table>
+          <tr><td><kbd>Leertaste</kbd></td><td>Abspielen / Pause</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Stopp</td></tr>
+          <tr><td><kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>Von vorn / ab Marker</td></tr>
+          <tr><td><kbd>L</kbd></td><td>Voriger Titel nochmal</td></tr>
+          <tr><td><kbd>M</kbd></td><td>Marker setzen</td></tr>
+          <tr><td><kbd>1</kbd>…<kbd>9</kbd></td><td>Marker 1–9 antippen</td></tr>
+          <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Zurück / vor</td></tr>
+          <tr><td><kbd>↑</kbd> / <kbd>↓</kbd> / <kbd>Enter</kbd></td><td>Titel wählen / abspielen</td></tr>
+          <tr><td><kbd>F</kbd> / <kbd>O</kbd></td><td>Ausblenden / Schleife</td></tr>
+          <tr><td><kbd>C</kbd></td><td>Mitzählen umschalten</td></tr>
+          <tr><td><kbd>Strg</kbd>+<kbd>Z</kbd></td><td>Rückgängig</td></tr>
+        </table>
+      </div>
+      <div class="dlg-actions sticky"><button class="btn">Schließen</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"><span id="toastText"></span><button id="toastAction" class="toast-action" hidden></button></div>
+  <script src="analysis.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
