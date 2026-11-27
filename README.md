@@ -41,7 +41,7 @@ Veranstaltung daher die Setliste exportieren und die Audiodateien griffbereit ha
 ## Android-App
 
 Bei jedem Push baut GitHub Actions eine APK und stellt sie unter dem Release `apk-latest` bereit:
-https://github.com/DerSchranner1/Test-Projekt-/releases/download/apk-latest/narrhalla-player.apk
+https://github.com/DerSchranner1/Narrhalla-Player/releases/download/apk-latest/narrhalla-player.apk
 
 Die Android-Hülle ist Capacitor (`npm run android:prepare`). Export nutzt dort die Plugins Filesystem und Share.
 Die Analyse (Lieder, Schläge, „1“) steckt in `analysis.js`: spektraler Fluss, Tempo per Autokorrelation, Schlagverfolgung per dynamischer Programmierung, „1“ an Liedanfängen und Schnitten. Sie läuft im Browser in einem Web Worker und auch in Node.
